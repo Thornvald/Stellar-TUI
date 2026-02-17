@@ -29,17 +29,52 @@ Terminal UI for managing and building Unreal Engine projects.
 - `?`: help
 - `q`: quit
 
-## Build Locally
+## Install (Recommended)
 
-Prerequisites:
+For most users, just download and run the Windows installer from Releases:
 
-- Rust toolchain (stable): https://rustup.rs
+- `Stellar-setup-<version>.exe`
 
-Build debug binary:
+Release page:
+
+- `https://github.com/Thornvald/Stellar-TUI/releases`
+
+For macOS and Linux, download the matching release binary from the same page:
+
+- `Stellar-macos-<arch>`
+- `Stellar-linux-<arch>`
+
+The installer:
+
+- installs Stellar to `Program Files\Stellar`
+- adds Stellar to your user `PATH`
+- creates Start Menu shortcuts
+
+After install, open a new terminal and run:
 
 ```bash
-cargo build
+stellar
 ```
+
+For macOS/Linux release binaries, mark executable if needed and run directly.
+
+## Winget
+
+When available:
+
+```bash
+winget install Thornvald.StellarTUI
+```
+
+If Winget cannot find it yet, use the GitHub Releases installer.
+
+## Build from Source (Optional)
+
+Only needed if you want to rebuild locally.
+
+Prerequisite:
+
+- Rust (stable): https://rustup.rs
 
 Build release binary:
 
@@ -47,73 +82,18 @@ Build release binary:
 cargo build --release
 ```
 
-Outputs:
+Output:
 
 - Windows: `target/release/stellar.exe`
 - Linux/macOS: `target/release/stellar`
 
-## Run
+## How Releases Are Built
 
-```bash
-cargo run
-```
+Releases can be built automatically with GitHub Actions using `.github/workflows/release.yml`.
 
-or run the built binary directly from `target/release`.
-
-## Install and Run as `stellar`
-
-If `stellar` is on your system `PATH`, users can open a terminal and run:
-
-```bash
-stellar
-```
-
-For non-technical users, the most reliable approach is to ship installers that set up `PATH` automatically:
-
-- Windows: MSI/EXE installer (or Winget package)
-- macOS: PKG installer (or Homebrew tap)
-- Linux: native packages (`.deb`/`.rpm`) or package managers
-
-Portable fallback (manual): place the binary in a folder already on `PATH`.
-
-### Windows Installer
-
-The repository includes an Inno Setup installer script at `packaging/windows/stellar.iss`.
-
-- Installs Stellar to `Program Files\Stellar`
-- Adds the install folder to user `PATH` automatically
-- Creates Start Menu entries
-
-After installation, users can open a new terminal and run:
-
-```bash
-stellar
-```
-
-## Install Options
-
-Two install options are supported:
-
-1. GitHub Release download
-   - `Stellar-setup-<version>.exe` (recommended for most users)
-2. Winget package
-   - `winget install Thornvald.StellarTUI`
-
-Winget becomes available after the package submission PR is merged in `microsoft/winget-pkgs` and index updates propagate. If it is not found yet, use the GitHub Release installer first.
-
-## Cross-Platform Distribution
-
-A binary built on one OS is generally for that OS only. Recommended release process:
-
-1. Build native binaries on Windows, Linux, and macOS.
-2. Publish all binaries in a GitHub Release.
-3. Users download the binary for their platform.
-
-This repository includes a GitHub Actions workflow at `.github/workflows/release.yml` that:
-
-- builds release binaries on Windows, Linux, and macOS
-- uploads CI artifacts
-- when you push a tag like `v1.0.0`, publishes those binaries to a GitHub Release
+- Maintainers push a version tag like `v0.92.1`
+- GitHub Actions builds the app and installer
+- The workflow publishes the installer to GitHub Releases
 
 ## Repository
 

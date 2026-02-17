@@ -90,7 +90,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp target/release/stellar.exe "dist/Stellar-windows-${{ runner.arch }}.exe"
           cp packaging/windows/dist/Stellar-setup-*.exe dist/
 
       - name: Prepare artifact (Linux/macOS)
@@ -123,4 +122,4 @@ jobs:
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Stellar-setup-*.exe
+          files: dist/*
