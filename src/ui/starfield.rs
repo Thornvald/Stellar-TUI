@@ -1,10 +1,10 @@
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::widgets::Widget;
 use ratatui::Frame;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
 
 pub fn draw_starfield(f: &mut Frame, area: Rect, tick: u64) {
     let widget = StarfieldWidget { tick };
@@ -67,9 +67,29 @@ impl Widget for StarfieldWidget {
 fn star_appearance(layer: u8, brightness: f64) -> (char, Color) {
     let b = (brightness * 255.0).clamp(0.0, 255.0) as u8;
     let ch = match layer {
-        0 => if brightness > 0.35 { '∙' } else { '·' },
-        1 => if brightness > 0.55 { '•' } else { '∙' },
-        _ => if brightness > 0.8 { '✦' } else if brightness > 0.6 { '*' } else { '•' },
+        0 => {
+            if brightness > 0.35 {
+                '∙'
+            } else {
+                '·'
+            }
+        }
+        1 => {
+            if brightness > 0.55 {
+                '•'
+            } else {
+                '∙'
+            }
+        }
+        _ => {
+            if brightness > 0.8 {
+                '✦'
+            } else if brightness > 0.6 {
+                '*'
+            } else {
+                '•'
+            }
+        }
     };
     (ch, Color::Rgb(b, b, b))
 }

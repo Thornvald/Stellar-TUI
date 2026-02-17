@@ -5,6 +5,14 @@ use serde::{Deserialize, Serialize};
 pub struct ProjectConfig {
     pub name: String,
     pub path: String,
+    /// Override for the editor build target name (e.g. "ObversusUmbraEditor").
+    /// If None, Stellar auto-detects from Source/*Editor.Target.cs files.
+    #[serde(
+        rename = "editorTarget",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub editor_target: Option<String>,
 }
 
 /// Top-level persisted config (compatible with the Tauri app's JSON format).
@@ -121,6 +129,12 @@ pub enum DialogKind {
     },
     /// Pick from a list of detected engine installs.
     EnginePicker,
+    /// Pick an editor target for a specific project.
+    EditorTargetPicker {
+        project_index: usize,
+        candidates: Vec<String>,
+        selected: usize,
+    },
     /// Confirm an action (message, confirmed action tag).
     Confirm {
         message: String,
@@ -134,6 +148,7 @@ pub enum DialogKind {
 pub enum PathInputTarget {
     AddProject,
     SetEnginePath,
+    SetEditorTarget(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

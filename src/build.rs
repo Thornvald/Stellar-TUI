@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,21 +33,100 @@ impl BuildHandle {
 }
 
 /// Derive the editor target name from a .uproject path.
-fn derive_editor_target(project_path: &str) -> Result<String, String> {
+/// First scans Source/ for *Editor.Target.cs files. If exactly one is found, use it.
+/// If the .uproject-derived name matches one, use it.
+/// Returns Err with a list of candidates if ambiguous and no match.
+pub fn derive_editor_target(project_path: &str) -> Result<String, String> {
     let path = PathBuf::from(project_path);
-    if !path.exists() {
-        return Err(format!("Project file not found: {}", project_path));
-    }
+    let editor_targets = discover_editor_targets(project_path)?;
+
+    // Derive the expected name from the .uproject filename
     let stem = path
         .file_stem()
         .ok_or_else(|| "Invalid project file name".to_string())?
         .to_string_lossy()
         .to_string();
-    if stem.to_lowercase().ends_with("editor") {
-        Ok(stem)
+    let expected = if stem.to_lowercase().ends_with("editor") {
+        stem.clone()
     } else {
-        Ok(format!("{}Editor", stem))
+        format!("{}Editor", stem)
+    };
+
+    if editor_targets.is_empty() {
+        // No Target.cs files found; fall back to .uproject-derived name
+        return Ok(expected);
     }
+
+    // If exactly one editor target exists, use it
+    if editor_targets.len() == 1 {
+        return Ok(editor_targets[0].clone());
+    }
+
+    // If the expected name matches one of the found targets, use it
+    if editor_targets.iter().any(|t| t == &expected) {
+        return Ok(expected);
+    }
+
+    // Multiple targets and none match the .uproject name -- ambiguous
+    Err(format!(
+        "Multiple editor targets found but none match '{}': {}. Set the target manually.",
+        expected,
+        editor_targets.join(", ")
+    ))
+}
+
+/// Scan a Source/ directory for files matching *Editor.Target.cs and return target names.
+fn scan_editor_targets(source_dir: &Path) -> Vec<String> {
+    let mut targets = Vec::new();
+    if !source_dir.is_dir() {
+        return targets;
+    }
+
+    if let Ok(entries) = std::fs::read_dir(source_dir) {
+        for entry in entries.flatten() {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            if file_name.ends_with("Editor.Target.cs") {
+                // Strip ".Target.cs" to get the target name
+                if let Some(name) = file_name.strip_suffix(".Target.cs") {
+                    targets.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    targets
+}
+
+/// Discover editor targets by scanning `<ProjectDir>/Source/*Editor.Target.cs`.
+pub fn discover_editor_targets(project_path: &str) -> Result<Vec<String>, String> {
+    let path = PathBuf::from(project_path);
+    if !path.exists() {
+        return Err(format!("Project file not found: {}", project_path));
+    }
+
+    let project_dir = path
+        .parent()
+        .ok_or_else(|| "Cannot determine project directory".to_string())?;
+    let source_dir = project_dir.join("Source");
+
+    let mut editor_targets = scan_editor_targets(&source_dir);
+    editor_targets.sort();
+    editor_targets.dedup();
+    Ok(editor_targets)
+}
+
+pub fn looks_like_target_error(line: &str) -> bool {
+    let lower = line.to_lowercase();
+    (lower.contains("couldn't find target rules file")
+        || lower.contains("unable to find target")
+        || lower.contains("no target name was specified")
+        || lower.contains("target rules")
+        || lower.contains("editor.target.cs"))
+        && lower.contains("target")
+}
+
+pub fn is_ambiguous_target_error(err: &str) -> bool {
+    err.contains("Multiple editor targets found")
 }
 
 /// Spawn a build as a background tokio task.
@@ -55,6 +134,7 @@ fn derive_editor_target(project_path: &str) -> Result<String, String> {
 pub fn spawn_build(
     project_path: String,
     engine_path: String,
+    editor_target_override: Option<String>,
     tx: mpsc::UnboundedSender<String>,
     mode: BuildMode,
 ) -> Result<BuildHandle, String> {
@@ -68,7 +148,11 @@ pub fn spawn_build(
         ));
     }
 
-    let target_name = derive_editor_target(&project_path)?;
+    let target_name = editor_target_override
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(Ok)
+        .unwrap_or_else(|| derive_editor_target(&project_path))?;
     let project_dir = PathBuf::from(&project_path)
         .parent()
         .map(|p| p.to_path_buf());
@@ -249,7 +333,10 @@ async fn clean_project_artifacts(
     let sln_from_project = project_file.with_extension("sln");
     let mut files_to_remove = vec![sln_from_project];
 
-    if let Some(stem) = project_file.file_stem().map(|s| s.to_string_lossy().to_string()) {
+    if let Some(stem) = project_file
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+    {
         files_to_remove.push(project_dir.join(format!("{}.sln", stem)));
     }
 

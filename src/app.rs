@@ -203,6 +203,7 @@ impl App {
         self.config.projects.push(ProjectConfig {
             name,
             path: path.clone(),
+            editor_target: None,
         });
         // Focus the newly added project
         let idx = self.config.projects.len() - 1;
@@ -282,6 +283,10 @@ impl App {
     }
 
     pub fn push_log(&mut self, text: String) {
+        let text = sanitize_log_text(&text);
+        if text.is_empty() {
+            return;
+        }
         let level = classify_log_line(&text);
         self.logs.push(LogLine { text, level });
         if self.logs.len() > 10_000 {
@@ -391,12 +396,23 @@ impl App {
         let (tx, rx) = mpsc::unbounded_channel();
         self.log_rx = Some(rx);
 
-        match crate::build::spawn_build(project.path.clone(), engine_path, tx, mode) {
+        match crate::build::spawn_build(
+            project.path.clone(),
+            engine_path,
+            project.editor_target.clone(),
+            tx,
+            mode,
+        ) {
             Ok(handle) => {
                 self.build_handle = Some(handle);
             }
             Err(e) => {
                 self.push_log(format!("Failed to start build: {}", e));
+                if crate::build::is_ambiguous_target_error(&e) {
+                    let _ = self.prompt_editor_target_resolution(
+                        "Multiple editor targets were detected. Choose one and build again.",
+                    );
+                }
                 self.build_state = BuildState::Error;
                 self.log_rx = None;
             }
@@ -438,25 +454,100 @@ impl App {
         }
 
         if self.build_state == BuildState::Running {
-            if let Some(handle) = &mut self.build_handle {
-                if let Some(success) = handle.try_finished() {
-                    self.build_state = if success {
-                        BuildState::Success
-                    } else {
-                        BuildState::Error
-                    };
-                    if success {
-                        self.push_log("Build completed successfully.".into());
-                        crate::notify::on_build_success();
-                    } else {
-                        self.push_log("Build finished with errors.".into());
-                        crate::notify::on_build_failed();
+            let finished = self.build_handle.as_ref().and_then(|h| h.try_finished());
+            if let Some(success) = finished {
+                self.build_state = if success {
+                    BuildState::Success
+                } else {
+                    BuildState::Error
+                };
+                if success {
+                    self.push_log("Build completed successfully.".into());
+                    crate::notify::on_build_success();
+                } else {
+                    self.push_log("Build finished with errors.".into());
+                    crate::notify::on_build_failed();
+                    if self
+                        .logs
+                        .iter()
+                        .rev()
+                        .take(200)
+                        .any(|l| crate::build::looks_like_target_error(&l.text))
+                    {
+                        let _ = self.prompt_editor_target_resolution(
+                            "Build failed with a target-related error. Choose the correct editor target and rebuild.",
+                        );
                     }
-                    self.follow_latest_logs();
-                    self.build_handle = None;
                 }
+                self.follow_latest_logs();
+                self.build_handle = None;
             }
         }
+    }
+
+    fn set_editor_target(&mut self, project_index: usize, editor_target: String) -> bool {
+        let trimmed = editor_target.trim().to_string();
+        if trimmed.is_empty() {
+            return false;
+        }
+        if let Some(project) = self.config.projects.get_mut(project_index) {
+            let project_name = project.name.clone();
+            project.editor_target = Some(trimmed.clone());
+            self.save_config();
+            self.flash_message = Some(format!(
+                "Editor target for {} set to {}",
+                project_name, trimmed
+            ));
+            self.flash_until = self.tick + 90;
+            return true;
+        }
+        false
+    }
+
+    fn prompt_editor_target_resolution(&mut self, reason: &str) -> bool {
+        let Some(project_index) = self.selected_project_index() else {
+            return false;
+        };
+        let Some(project) = self.config.projects.get(project_index) else {
+            return false;
+        };
+
+        let candidates = match crate::build::discover_editor_targets(&project.path) {
+            Ok(v) => v,
+            Err(e) => {
+                self.push_log(format!("Failed to detect editor targets: {}", e));
+                return false;
+            }
+        };
+
+        if candidates.len() == 1 {
+            if self.set_editor_target(project_index, candidates[0].clone()) {
+                self.push_log(format!("{} (auto-selected: {}).", reason, candidates[0]));
+                return true;
+            }
+            return false;
+        }
+
+        if !candidates.is_empty() {
+            self.dialog = Some(DialogKind::EditorTargetPicker {
+                project_index,
+                candidates,
+                selected: 0,
+            });
+            self.push_log(reason.to_string());
+            return true;
+        }
+
+        self.dialog = Some(DialogKind::PathInput {
+            label: "Set Editor Target (e.g. MyGameEditor)".into(),
+            value: String::new(),
+            target: PathInputTarget::SetEditorTarget(project_index),
+        });
+        self.push_log(format!(
+            "{} No *Editor.Target.cs files were found, so enter the target manually.",
+            reason
+        ));
+        true
     }
 
     pub fn open_add_project_dialog(&mut self) {
@@ -511,11 +602,23 @@ impl App {
                     match target {
                         PathInputTarget::AddProject => self.add_project(trimmed),
                         PathInputTarget::SetEnginePath => self.set_engine_path(trimmed),
+                        PathInputTarget::SetEditorTarget(project_index) => {
+                            let _ = self.set_editor_target(project_index, trimmed);
+                        }
                     }
                 }
             }
             DialogKind::EnginePicker => {
                 self.pick_engine(self.engine_picker_index);
+            }
+            DialogKind::EditorTargetPicker {
+                project_index,
+                candidates,
+                selected,
+            } => {
+                if let Some(choice) = candidates.get(selected) {
+                    let _ = self.set_editor_target(project_index, choice.clone());
+                }
             }
             DialogKind::Confirm { action, .. } => match action {
                 ConfirmAction::RemoveProject(idx) => self.remove_project(idx),
@@ -536,4 +639,33 @@ fn classify_log_line(line: &str) -> LogLevel {
     } else {
         LogLevel::Info
     }
+}
+
+fn sanitize_log_text(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' {
+            if matches!(chars.peek(), Some('[')) {
+                let _ = chars.next();
+                while let Some(next) = chars.next() {
+                    if ('@'..='~').contains(&next) {
+                        break;
+                    }
+                }
+                continue;
+            }
+            continue;
+        }
+
+        match ch {
+            '\r' | '\n' => out.push(' '),
+            '\t' => out.push_str("    "),
+            c if c.is_control() => {}
+            c => out.push(c),
+        }
+    }
+
+    out.trim_end().to_string()
 }

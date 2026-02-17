@@ -50,13 +50,20 @@ async fn run_app(
     let mut last_tick = Instant::now();
 
     loop {
+        // Keep build output draining at high frequency for smooth log updates.
+        app.poll_build();
+
         // Render
         terminal.draw(|f| ui::draw(f, &app))?;
 
         // Poll for events with timeout to maintain tick rate
-        let timeout = TICK_RATE
+        let mut timeout = TICK_RATE
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
+
+        if app.build_state == crate::types::BuildState::Running {
+            timeout = timeout.min(Duration::from_millis(5));
+        }
 
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
@@ -66,9 +73,7 @@ async fn run_app(
                 }
 
                 // Ctrl+C always quits
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && key.code == KeyCode::Char('c')
-                {
+                if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
                     app.should_quit = true;
                 }
 
@@ -79,7 +84,6 @@ async fn run_app(
         // Tick update
         if last_tick.elapsed() >= TICK_RATE {
             app.tick = app.tick.wrapping_add(1);
-            app.poll_build();
             last_tick = Instant::now();
         }
 

@@ -39,7 +39,9 @@ pub fn panel_title_style() -> Style {
 }
 
 pub fn key_hint_style() -> Style {
-    Style::default().fg(ACCENT_WARM).add_modifier(Modifier::BOLD)
+    Style::default()
+        .fg(ACCENT_WARM)
+        .add_modifier(Modifier::BOLD)
 }
 
 pub fn selected_style() -> Style {

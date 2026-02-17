@@ -95,8 +95,7 @@ stellar
 Two install options are supported:
 
 1. GitHub Release download
-   - `stellar-setup-<version>.exe` (recommended for most users)
-   - `stellar-windows-x64.exe` (portable executable)
+   - `Stellar-setup-<version>.exe` (recommended for most users)
 2. Winget package
    - `winget install Thornvald.StellarTUI`
 

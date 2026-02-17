@@ -1,16 +1,18 @@
 #ifndef StellarVersion
-#define StellarVersion "0.91.0"
+#define StellarVersion "0.92.1"
 #endif
 
 [Setup]
 AppId={{D5EED8B6-E8B8-4B40-B2BC-956D41A4C509}
 AppName=Stellar
+AppVerName=Stellar
 AppVersion={#StellarVersion}
-AppPublisher=Stellar
+AppPublisher=Thornvald
+UninstallDisplayName=Stellar
 DefaultDirName={autopf}\Stellar
 DefaultGroupName=Stellar
 OutputDir=dist
-OutputBaseFilename=stellar-setup-{#StellarVersion}
+OutputBaseFilename=Stellar-setup-{#StellarVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

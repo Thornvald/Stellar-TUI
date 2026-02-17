@@ -72,21 +72,17 @@ pub fn detect_engines() -> Vec<EngineInstall> {
     // Check Windows launcher installed file
     #[cfg(windows)]
     {
-        let program_data = std::env::var("ProgramData")
-            .unwrap_or_else(|_| "C:\\ProgramData".to_string());
+        let program_data =
+            std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".to_string());
         let launcher_paths = [
-            PathBuf::from(&program_data)
-                .join("Epic/UnrealEngineLauncher/LauncherInstalled.dat"),
-            PathBuf::from(&program_data)
-                .join("Epic/EpicGamesLauncher/LauncherInstalled.dat"),
+            PathBuf::from(&program_data).join("Epic/UnrealEngineLauncher/LauncherInstalled.dat"),
+            PathBuf::from(&program_data).join("Epic/EpicGamesLauncher/LauncherInstalled.dat"),
         ];
 
         for launcher_path in &launcher_paths {
             if let Ok(contents) = fs::read_to_string(launcher_path) {
                 if let Ok(data) = serde_json::from_str::<serde_json::Value>(&contents) {
-                    if let Some(list) =
-                        data.get("InstallationList").and_then(|v| v.as_array())
-                    {
+                    if let Some(list) = data.get("InstallationList").and_then(|v| v.as_array()) {
                         for item in list {
                             if let Some(location) =
                                 item.get("InstallLocation").and_then(|v| v.as_str())
@@ -132,19 +128,15 @@ pub fn detect_engines() -> Vec<EngineInstall> {
     }
 
     // Sort by version descending
-    installs.sort_by(|a, b| {
-        match (&b.version, &a.version) {
-            (Some(bv), Some(av)) => {
-                let a_parts: Vec<u32> =
-                    av.split('.').filter_map(|s| s.parse().ok()).collect();
-                let b_parts: Vec<u32> =
-                    bv.split('.').filter_map(|s| s.parse().ok()).collect();
-                b_parts.cmp(&a_parts)
-            }
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => std::cmp::Ordering::Equal,
+    installs.sort_by(|a, b| match (&b.version, &a.version) {
+        (Some(bv), Some(av)) => {
+            let a_parts: Vec<u32> = av.split('.').filter_map(|s| s.parse().ok()).collect();
+            let b_parts: Vec<u32> = bv.split('.').filter_map(|s| s.parse().ok()).collect();
+            b_parts.cmp(&a_parts)
         }
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
     });
 
     installs

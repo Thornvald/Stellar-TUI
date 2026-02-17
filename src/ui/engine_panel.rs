@@ -1,11 +1,11 @@
+use super::theme;
+use crate::app::App;
+use crate::types::{FocusItem, FocusPanel};
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
-use crate::app::App;
-use crate::types::{FocusItem, FocusPanel};
-use super::theme;
 
 pub fn draw_engine_panel(f: &mut Frame, area: Rect, app: &App) {
     let focused = app.focused_panel() == FocusPanel::Engine;

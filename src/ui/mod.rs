@@ -8,8 +8,8 @@ pub mod projects;
 pub mod starfield;
 pub mod theme;
 
-use ratatui::Frame;
 use crate::app::App;
+use ratatui::Frame;
 
 /// Master render function: draws starfield, layout, panels, then modal overlay.
 pub fn draw(f: &mut Frame, app: &App) {

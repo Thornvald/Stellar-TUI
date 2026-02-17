@@ -210,6 +210,7 @@ fn handle_dialog_key(app: &mut App, key: KeyEvent) {
     match &app.dialog {
         Some(DialogKind::PathInput { .. }) => handle_path_input_key(app, key),
         Some(DialogKind::EnginePicker) => handle_engine_picker_key(app, key),
+        Some(DialogKind::EditorTargetPicker { .. }) => handle_editor_target_picker_key(app, key),
         Some(DialogKind::Confirm { .. }) => handle_confirm_key(app, key),
         Some(DialogKind::Help) => {
             app.close_dialog();
@@ -258,6 +259,55 @@ fn handle_engine_picker_key(app: &mut App, key: KeyEvent) {
                 value: app.config.unreal_engine_path.clone().unwrap_or_default(),
                 target: PathInputTarget::SetEnginePath,
             });
+        }
+        _ => {}
+    }
+}
+
+fn handle_editor_target_picker_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc => app.close_dialog(),
+        KeyCode::Enter => app.confirm_dialog(),
+        KeyCode::Char('j') | KeyCode::Down => {
+            if let Some(DialogKind::EditorTargetPicker {
+                candidates,
+                selected,
+                ..
+            }) = &mut app.dialog
+            {
+                let len = candidates.len();
+                if len > 0 {
+                    *selected = (*selected + 1) % len;
+                }
+            }
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            if let Some(DialogKind::EditorTargetPicker {
+                candidates,
+                selected,
+                ..
+            }) = &mut app.dialog
+            {
+                let len = candidates.len();
+                if len > 0 {
+                    *selected = (*selected + len - 1) % len;
+                }
+            }
+        }
+        KeyCode::Char('m') => {
+            if let Some(DialogKind::EditorTargetPicker { project_index, .. }) = &app.dialog {
+                let value = app
+                    .config
+                    .projects
+                    .get(*project_index)
+                    .and_then(|p| p.editor_target.clone())
+                    .unwrap_or_default();
+                app.dialog = Some(DialogKind::PathInput {
+                    label: "Set Editor Target (e.g. MyGameEditor)".into(),
+                    value,
+                    target: PathInputTarget::SetEditorTarget(*project_index),
+                });
+            }
         }
         _ => {}
     }

@@ -21,6 +21,13 @@ pub fn draw_dialog(f: &mut Frame, area: Rect, app: &App) {
         DialogKind::EnginePicker => {
             draw_engine_picker(f, area, app);
         }
+        DialogKind::EditorTargetPicker {
+            project_index,
+            candidates,
+            selected,
+        } => {
+            draw_editor_target_picker(f, area, app, *project_index, candidates, *selected);
+        }
         DialogKind::Confirm { message, .. } => {
             draw_confirm(f, area, message);
         }
@@ -133,6 +140,70 @@ fn draw_engine_picker(f: &mut Frame, area: Rect, app: &App) {
         lines.push(Line::from(vec![
             Span::raw("   "),
             Span::styled(&engine.path, Style::default().fg(theme::TEXT_DIM)),
+        ]));
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("  [Enter]", theme::key_hint_style()),
+        Span::styled(" Select  ", theme::footer_style()),
+        Span::styled("[m]", theme::key_hint_style()),
+        Span::styled(" Manual  ", theme::footer_style()),
+        Span::styled("[Esc]", theme::key_hint_style()),
+        Span::styled(" Cancel", theme::footer_style()),
+    ]));
+
+    f.render_widget(Paragraph::new(lines), inner);
+}
+
+fn draw_editor_target_picker(
+    f: &mut Frame,
+    area: Rect,
+    app: &App,
+    project_index: usize,
+    candidates: &[String],
+    selected_index: usize,
+) {
+    let height = (candidates.len() as u16 + 8).min(area.height - 4).max(8);
+    let popup = centered_rect(60, height, area);
+    f.render_widget(Clear, popup);
+
+    let project_name = app
+        .config
+        .projects
+        .get(project_index)
+        .map(|p| p.name.as_str())
+        .unwrap_or("Project");
+
+    let block = Block::default()
+        .title(Line::from(vec![Span::styled(
+            format!(" Editor Target - {} ", project_name),
+            theme::panel_title_style(),
+        )]))
+        .borders(Borders::ALL)
+        .border_style(theme::border_style(true))
+        .style(Style::default().bg(theme::SURFACE));
+
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let mut lines = vec![Line::from(vec![Span::styled(
+        "  Pick the editor target to build.",
+        Style::default().fg(theme::TEXT_DIM),
+    )])];
+    lines.push(Line::from(""));
+
+    for (i, candidate) in candidates.iter().enumerate() {
+        let selected = i == selected_index;
+        let marker = if selected { " > " } else { "   " };
+        let style = if selected {
+            theme::selected_style().add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::TEXT)
+        };
+        lines.push(Line::from(vec![
+            Span::styled(marker, style),
+            Span::styled(candidate, style),
         ]));
     }
 
