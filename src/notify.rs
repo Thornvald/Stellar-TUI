@@ -82,8 +82,8 @@ fn flash_taskbar() {
     use windows_sys::Win32::Foundation::HWND;
     use windows_sys::Win32::System::Console::GetConsoleWindow;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        FlashWindowEx, GetAncestor, GetForegroundWindow, GetWindow, FLASHWINFO, FLASHW_ALL,
-        FLASHW_TIMERNOFG, GA_ROOTOWNER, GW_OWNER,
+        FlashWindowEx, GetAncestor, GetWindow, FLASHWINFO, FLASHW_ALL, FLASHW_TIMERNOFG,
+        GA_ROOTOWNER, GW_OWNER,
     };
 
     unsafe {
@@ -112,23 +112,21 @@ fn flash_taskbar() {
             }
         }
 
-        // 3) Also flash parent process windows (terminal host like Windows Terminal).
-        if let Some(parent_pid) = get_parent_pid() {
-            let mut parent_found = collect_windows_for_pid(parent_pid);
-            for h in parent_found.drain(..) {
+        // 3) Walk the entire ancestor process chain (up to 10 levels).
+        //    cmd.exe -> conhost.exe, powershell -> conhost.exe,
+        //    WindowsTerminal.exe may be 2-3 levels up, etc.
+        let ancestor_pids = get_ancestor_pids(pid, 10);
+        for ancestor_pid in ancestor_pids {
+            let mut ancestor_found = collect_windows_for_pid(ancestor_pid);
+            for h in ancestor_found.drain(..) {
                 if !handles.contains(&h) {
                     handles.push(h);
                 }
             }
         }
 
-        let foreground = GetForegroundWindow();
-
-        // Flash every candidate window except the currently focused one.
+        // Flash every candidate window we found.
         for hwnd in handles {
-            if hwnd == foreground {
-                continue;
-            }
             let mut info = FLASHWINFO {
                 cbSize: size_of::<FLASHWINFO>() as u32,
                 hwnd,
@@ -175,28 +173,48 @@ fn collect_windows_for_pid(target_pid: u32) -> Vec<windows_sys::Win32::Foundatio
         .unwrap_or_default()
 }
 
+/// Walk up the process tree from `start_pid`, returning up to `max_depth` ancestor PIDs.
 #[cfg(windows)]
-fn get_parent_pid() -> Option<u32> {
+fn get_ancestor_pids(start_pid: u32, max_depth: usize) -> Vec<u32> {
+    let snapshot = build_process_snapshot();
+    let mut result = Vec::new();
+    let mut current = start_pid;
+
+    for _ in 0..max_depth {
+        if let Some(parent) = parent_of(&snapshot, current) {
+            if parent == 0 || parent == current || result.contains(&parent) {
+                break;
+            }
+            result.push(parent);
+            current = parent;
+        } else {
+            break;
+        }
+    }
+
+    result
+}
+
+#[cfg(windows)]
+fn build_process_snapshot() -> Vec<(u32, u32)> {
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
     };
 
+    let mut entries = Vec::new();
+
     unsafe {
         let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if snap.is_null() {
-            return None;
+            return entries;
         }
 
-        let my_pid = std::process::id();
         let mut entry: PROCESSENTRY32 = std::mem::zeroed();
         entry.dwSize = std::mem::size_of::<PROCESSENTRY32>() as u32;
 
         if Process32First(snap, &mut entry) != 0 {
             loop {
-                if entry.th32ProcessID == my_pid {
-                    let _ = windows_sys::Win32::Foundation::CloseHandle(snap);
-                    return Some(entry.th32ParentProcessID);
-                }
+                entries.push((entry.th32ProcessID, entry.th32ParentProcessID));
                 if Process32Next(snap, &mut entry) == 0 {
                     break;
                 }
@@ -204,8 +222,17 @@ fn get_parent_pid() -> Option<u32> {
         }
 
         let _ = windows_sys::Win32::Foundation::CloseHandle(snap);
-        None
     }
+
+    entries
+}
+
+#[cfg(windows)]
+fn parent_of(snapshot: &[(u32, u32)], pid: u32) -> Option<u32> {
+    snapshot
+        .iter()
+        .find(|(child, _)| *child == pid)
+        .map(|(_, parent)| *parent)
 }
 
 #[cfg(not(windows))]
