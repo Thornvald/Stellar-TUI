@@ -1,6 +1,6 @@
 [package]
 name = "stellar"
-version = "0.90.0"
+version = "0.91.0"
 edition = "2021"
 description = "Build Unreal Engine projects from your terminal"
 autobins = false
@@ -29,5 +29,6 @@ windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Media_Audio",
     "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
     "Win32_UI_WindowsAndMessaging",
 ] }

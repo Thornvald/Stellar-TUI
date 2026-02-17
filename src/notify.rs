@@ -79,31 +79,132 @@ fn fallback_beep(_file_name: &str) {}
 #[cfg(windows)]
 fn flash_taskbar() {
     use std::mem::size_of;
+    use windows_sys::Win32::Foundation::HWND;
     use windows_sys::Win32::System::Console::GetConsoleWindow;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        FlashWindowEx, GetForegroundWindow, FLASHWINFO, FLASHW_CAPTION, FLASHW_TIMERNOFG,
-        FLASHW_TRAY,
+        FlashWindowEx, GetAncestor, GetForegroundWindow, GetWindow, FLASHWINFO, FLASHW_ALL,
+        FLASHW_TIMERNOFG, GA_ROOTOWNER, GW_OWNER,
     };
 
     unsafe {
-        let hwnd = GetConsoleWindow();
-        if hwnd.is_null() {
-            return;
+        let mut handles: Vec<HWND> = Vec::new();
+
+        // 1) Console window and its ancestors/owner.
+        let console = GetConsoleWindow();
+        if !console.is_null() {
+            handles.push(console);
+            let root = GetAncestor(console, GA_ROOTOWNER);
+            if !root.is_null() && root != console {
+                handles.push(root);
+            }
+            let owner = GetWindow(console, GW_OWNER);
+            if !owner.is_null() && owner != console {
+                handles.push(owner);
+            }
+        }
+
+        // 2) All visible windows owned by our process.
+        let pid = std::process::id();
+        let mut found = collect_windows_for_pid(pid);
+        for h in found.drain(..) {
+            if !handles.contains(&h) {
+                handles.push(h);
+            }
+        }
+
+        // 3) Also flash parent process windows (terminal host like Windows Terminal).
+        if let Some(parent_pid) = get_parent_pid() {
+            let mut parent_found = collect_windows_for_pid(parent_pid);
+            for h in parent_found.drain(..) {
+                if !handles.contains(&h) {
+                    handles.push(h);
+                }
+            }
         }
 
         let foreground = GetForegroundWindow();
-        if foreground == hwnd {
-            return;
+
+        // Flash every candidate window except the currently focused one.
+        for hwnd in handles {
+            if hwnd == foreground {
+                continue;
+            }
+            let mut info = FLASHWINFO {
+                cbSize: size_of::<FLASHWINFO>() as u32,
+                hwnd,
+                dwFlags: FLASHW_ALL | FLASHW_TIMERNOFG,
+                uCount: 5,
+                dwTimeout: 0,
+            };
+            let _ = FlashWindowEx(&mut info);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn collect_windows_for_pid(target_pid: u32) -> Vec<windows_sys::Win32::Foundation::HWND> {
+    use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindowThreadProcessId, IsWindowVisible,
+    };
+
+    // HWND is *mut c_void which is not Send, so store as usize for the static Mutex.
+    static RESULTS: std::sync::Mutex<Vec<usize>> = std::sync::Mutex::new(Vec::new());
+
+    unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let pid = lparam as u32;
+        let mut window_pid: u32 = 0;
+        let _ = GetWindowThreadProcessId(hwnd, &mut window_pid);
+        if window_pid == pid && IsWindowVisible(hwnd) != 0 {
+            if let Ok(mut r) = RESULTS.lock() {
+                r.push(hwnd as usize);
+            }
+        }
+        1
+    }
+
+    if let Ok(mut r) = RESULTS.lock() {
+        r.clear();
+    }
+    unsafe {
+        let _ = EnumWindows(Some(enum_cb), target_pid as LPARAM);
+    }
+    RESULTS
+        .lock()
+        .map(|r| r.iter().map(|&h| h as HWND).collect())
+        .unwrap_or_default()
+}
+
+#[cfg(windows)]
+fn get_parent_pid() -> Option<u32> {
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
+    };
+
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snap.is_null() {
+            return None;
         }
 
-        let mut info = FLASHWINFO {
-            cbSize: size_of::<FLASHWINFO>() as u32,
-            hwnd,
-            dwFlags: FLASHW_TRAY | FLASHW_CAPTION | FLASHW_TIMERNOFG,
-            uCount: 5,
-            dwTimeout: 0,
-        };
-        let _ = FlashWindowEx(&mut info);
+        let my_pid = std::process::id();
+        let mut entry: PROCESSENTRY32 = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32>() as u32;
+
+        if Process32First(snap, &mut entry) != 0 {
+            loop {
+                if entry.th32ProcessID == my_pid {
+                    let _ = windows_sys::Win32::Foundation::CloseHandle(snap);
+                    return Some(entry.th32ParentProcessID);
+                }
+                if Process32Next(snap, &mut entry) == 0 {
+                    break;
+                }
+            }
+        }
+
+        let _ = windows_sys::Win32::Foundation::CloseHandle(snap);
+        None
     }
 }
 

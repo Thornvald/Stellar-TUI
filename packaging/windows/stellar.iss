@@ -1,5 +1,5 @@
 #ifndef StellarVersion
-#define StellarVersion "0.90.0"
+#define StellarVersion "0.91.0"
 #endif
 
 [Setup]

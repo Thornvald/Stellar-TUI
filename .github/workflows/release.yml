@@ -42,7 +42,7 @@ jobs:
             $version = $version.Substring(1)
           }
           if ([string]::IsNullOrWhiteSpace($version)) {
-            $version = "0.90.0"
+            $version = "0.91.0"
           }
           $isccCandidates = @(
             "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
