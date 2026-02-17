@@ -3,6 +3,7 @@ mod build;
 mod config;
 mod engine;
 mod input;
+mod notify;
 mod types;
 mod ui;
 

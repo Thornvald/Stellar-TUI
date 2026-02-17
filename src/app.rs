@@ -445,6 +445,14 @@ impl App {
                     } else {
                         BuildState::Error
                     };
+                    if success {
+                        self.push_log("Build completed successfully.".into());
+                        crate::notify::on_build_success();
+                    } else {
+                        self.push_log("Build finished with errors.".into());
+                        crate::notify::on_build_failed();
+                    }
+                    self.follow_latest_logs();
                     self.build_handle = None;
                 }
             }

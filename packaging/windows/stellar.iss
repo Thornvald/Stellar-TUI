@@ -27,6 +27,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: "..\..\target\release\stellar.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\completed.wav"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\fail.wav"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Stellar"; Filename: "{app}\stellar.exe"

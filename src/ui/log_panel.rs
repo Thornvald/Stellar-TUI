@@ -1,10 +1,10 @@
-use ratatui::layout::Rect;
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::Frame;
+use super::theme;
 use crate::app::App;
 use crate::types::FocusPanel;
-use super::theme;
+use ratatui::layout::Rect;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::Frame;
 
 pub fn draw_log_panel(f: &mut Frame, area: Rect, app: &App) {
     let focused = app.focused_panel() == FocusPanel::Logs;
@@ -41,11 +41,17 @@ pub fn draw_log_panel(f: &mut Frame, area: Rect, app: &App) {
     let visible_height = inner.height as usize;
     let total = app.logs.len();
 
-    // Auto-scroll: if enabled, keep scroll at bottom
+    let max_top = total.saturating_sub(visible_height);
+
+    // auto_scroll_logs=true: always follow latest lines.
+    // auto_scroll_logs=false: app.log_scroll acts like a cursor at the bottom edge,
+    // then we derive the top line from that cursor so Up/Down move immediately.
     let scroll = if app.auto_scroll_logs {
-        total.saturating_sub(visible_height)
+        max_top
     } else {
-        app.log_scroll.min(total.saturating_sub(visible_height))
+        app.log_scroll
+            .saturating_sub(visible_height.saturating_sub(1))
+            .min(max_top)
     };
 
     let end = (scroll + visible_height).min(total);
@@ -55,15 +61,12 @@ pub fn draw_log_panel(f: &mut Frame, area: Rect, app: &App) {
         .iter()
         .map(|log| {
             Line::from(vec![
-                Span::styled(
-                    " > ",
-                    ratatui::style::Style::default().fg(theme::TEXT_DIM),
-                ),
+                Span::styled(" > ", ratatui::style::Style::default().fg(theme::TEXT_DIM)),
                 Span::styled(&log.text, theme::log_style(&log.level)),
             ])
         })
         .collect();
 
-    let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false });
+    let paragraph = Paragraph::new(lines);
     f.render_widget(paragraph, inner);
 }
