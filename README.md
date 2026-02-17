@@ -91,7 +91,7 @@ Output:
 
 Releases can be built automatically with GitHub Actions using `.github/workflows/release.yml`.
 
-- Maintainers push a version tag like `v0.92.1`
+- Maintainers push a version tag like `v0.92.2`
 - GitHub Actions builds the app and installer
 - The workflow publishes the installer to GitHub Releases
 

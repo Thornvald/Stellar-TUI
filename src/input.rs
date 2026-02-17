@@ -112,7 +112,10 @@ fn handle_project_key(app: &mut App, key: KeyEvent, index: usize) {
 
 fn handle_add_project_key(app: &mut App, key: KeyEvent) {
     match key.code {
-        KeyCode::Enter | KeyCode::Char('a') => {
+        KeyCode::Enter => {
+            app.open_add_project_file_dialog();
+        }
+        KeyCode::Char('a') => {
             app.open_add_project_dialog();
         }
         KeyCode::Char('f') => {
