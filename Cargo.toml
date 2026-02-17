@@ -1,0 +1,27 @@
+[package]
+name = "stellar"
+version = "0.90.0"
+edition = "2021"
+description = "Build Unreal Engine projects from your terminal"
+autobins = false
+
+[[bin]]
+name = "stellar"
+path = "src/main.rs"
+
+[build-dependencies]
+winres = "0.1"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+dirs = "5"
+rand = "0.8"
+chrono = "0.4"
+rfd = "0.15"
+unicode-width = "0.2"
+arboard = "3"
