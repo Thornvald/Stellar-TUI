@@ -44,8 +44,14 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
         }
         KeyCode::Down => {
             if app.focus == FocusItem::Logs {
-                app.auto_scroll_logs = true;
-                app.log_scroll = app.logs.len().saturating_sub(1);
+                if app.auto_scroll_logs {
+                    app.follow_latest_logs();
+                } else {
+                    app.log_scroll = app.log_scroll.saturating_add(1);
+                    if app.log_scroll >= app.logs.len().saturating_sub(1) {
+                        app.follow_latest_logs();
+                    }
+                }
             } else {
                 app.focus_next();
             }

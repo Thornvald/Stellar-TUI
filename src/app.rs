@@ -130,7 +130,10 @@ impl App {
         match self.focused_panel() {
             FocusPanel::Projects => self.focus = FocusItem::Engine,
             FocusPanel::Engine => self.focus = FocusItem::BuildButton(0),
-            FocusPanel::Build => self.focus = FocusItem::Logs,
+            FocusPanel::Build => {
+                self.focus = FocusItem::Logs;
+                self.follow_latest_logs();
+            }
             FocusPanel::Logs => self.focus = self.projects_anchor_item(),
         }
     }
@@ -142,6 +145,15 @@ impl App {
             FocusPanel::Build => self.focus = FocusItem::Engine,
             FocusPanel::Logs => self.focus = FocusItem::BuildButton(0),
         }
+
+        if self.focus == FocusItem::Logs {
+            self.follow_latest_logs();
+        }
+    }
+
+    pub fn follow_latest_logs(&mut self) {
+        self.auto_scroll_logs = true;
+        self.log_scroll = self.logs.len().saturating_sub(1);
     }
 
     fn projects_anchor_item(&self) -> FocusItem {
@@ -266,6 +278,7 @@ impl App {
     pub fn clear_logs(&mut self) {
         self.logs.clear();
         self.log_scroll = 0;
+        self.auto_scroll_logs = true;
     }
 
     pub fn push_log(&mut self, text: String) {
@@ -274,6 +287,9 @@ impl App {
         if self.logs.len() > 10_000 {
             self.logs.drain(0..1000);
             self.log_scroll = self.log_scroll.saturating_sub(1000);
+        }
+        if self.auto_scroll_logs {
+            self.log_scroll = self.logs.len().saturating_sub(1);
         }
     }
 
