@@ -81,7 +81,7 @@ Portable fallback (manual): place the binary in a folder already on `PATH`.
 The repository includes an Inno Setup installer script at `packaging/windows/stellar.iss`.
 
 - Installs Stellar to `Program Files\Stellar`
-- Adds the install folder to user `PATH` (optional checkbox, enabled by default)
+- Adds the install folder to user `PATH` automatically
 - Creates Start Menu entries
 
 After installation, users can open a new terminal and run:

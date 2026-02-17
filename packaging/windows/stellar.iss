@@ -24,9 +24,6 @@ ChangesEnvironment=yes
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "addtopath"; Description: "Add Stellar to PATH (current user)"; Flags: checkedonce
-
 [Files]
 Source: "..\..\target\release\stellar.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -39,7 +36,7 @@ Name: "{group}\Uninstall Stellar"; Filename: "{uninstallexe}"
 Filename: "{app}\stellar.exe"; Description: "Launch Stellar"; Flags: nowait postinstall skipifsilent
 
 [Registry]
-Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}'))
 
 [Code]
 function NeedsAddPath(Param: string): Boolean;
@@ -50,16 +47,5 @@ begin
   if RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', Paths) then
   begin
     Result := Pos(';' + Uppercase(Param) + ';', ';' + Uppercase(Paths) + ';') = 0;
-  end;
-end;
-
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if CurStep = ssPostInstall then
-  begin
-    if WizardIsTaskSelected('addtopath') then
-    begin
-      Log('Stellar added to PATH for current user.');
-    end;
   end;
 end;

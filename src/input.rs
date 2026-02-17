@@ -25,13 +25,21 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
             app.open_help();
             return;
         }
-        // Arrow keys: unified navigation, with log-specific up/down behavior.
+        // Arrow keys: panel navigation, with build-button horizontal navigation.
         KeyCode::Right | KeyCode::Tab => {
-            app.focus_next_panel();
+            if matches!(app.focus, FocusItem::BuildButton(_)) {
+                app.focus_next();
+            } else {
+                app.focus_next_panel();
+            }
             return;
         }
         KeyCode::Left | KeyCode::BackTab => {
-            app.focus_prev_panel();
+            if matches!(app.focus, FocusItem::BuildButton(_)) {
+                app.focus_prev();
+            } else {
+                app.focus_prev_panel();
+            }
             return;
         }
         KeyCode::Down => {
