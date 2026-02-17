@@ -6,16 +6,16 @@ pub const BG: Color = Color::Rgb(6, 6, 6);
 pub const SURFACE: Color = Color::Rgb(18, 18, 18);
 pub const SURFACE_ALT: Color = Color::Rgb(24, 24, 24);
 pub const BORDER: Color = Color::Rgb(50, 50, 50);
-pub const BORDER_FOCUS: Color = Color::Rgb(120, 120, 120);
+pub const BORDER_FOCUS: Color = Color::Rgb(140, 140, 140);
 
-pub const TEXT: Color = Color::Rgb(230, 230, 230);
-pub const TEXT_DIM: Color = Color::Rgb(120, 120, 120);
-pub const ACCENT: Color = Color::Rgb(180, 180, 180);
-pub const ACCENT_WARM: Color = Color::Rgb(210, 185, 140);
+pub const TEXT: Color = Color::Rgb(235, 235, 235);
+pub const TEXT_DIM: Color = Color::Rgb(130, 130, 130);
+pub const ACCENT: Color = Color::Rgb(235, 235, 235);
+pub const ACCENT_WARM: Color = Color::Rgb(235, 235, 235);
 
-pub const SUCCESS: Color = Color::Rgb(100, 200, 120);
-pub const ERROR: Color = Color::Rgb(220, 90, 90);
-pub const WARNING: Color = Color::Rgb(220, 180, 80);
+pub const SUCCESS: Color = Color::Rgb(0, 255, 0);
+pub const ERROR: Color = Color::Rgb(255, 50, 50);
+pub const WARNING: Color = Color::Rgb(200, 200, 200);
 
 pub const STAR_DIM: Color = Color::Rgb(60, 60, 70);
 pub const STAR_MID: Color = Color::Rgb(130, 130, 150);
