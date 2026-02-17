@@ -119,14 +119,3 @@ This repository includes a GitHub Actions workflow at `.github/workflows/release
 ## Repository
 
 - Source and releases: `https://github.com/Thornvald/Stellar-TUI`
-
-## Creating a Release
-
-Tag and push:
-
-```bash
-git tag v0.90.0
-git push origin v0.90.0
-```
-
-The workflow will publish release assets automatically.
